@@ -1,0 +1,272 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .error {
+            color: red;
+        }
+
+        #weather {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #searchHistory {
+            margin-top: 20px;
+            border-collapse: collapse; /* Collapse borders */
+            width: 100%; /* Full width */
+        }
+
+            #searchHistory th, #searchHistory td {
+                border: 1px solid black; /* Border for table cells */
+                padding: 10px;
+                text-align: center;
+            }
+
+            #searchHistory th {
+                background-color: #f0f0f0;
+            }
+
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            flex: 1 1 300px; /* Flex item will grow and shrink, and start at a width of 300px */
+        }
+
+            .card h2 {
+                margin: 0 0 10px 0;
+            }
+
+            .card p {
+                margin: 5px 0;
+            }
+
+        #suggestions {
+            border: 2px solid green;
+            max-height: 200px;
+            overflow-y: auto;
+            position: absolute;
+            background-color: #fff;
+            z-index: 10;
+            display: none; /* Hidden by default */
+        }
+
+        .suggestion-item {
+            padding: 5px;
+            cursor: pointer;
+            border-bottom: 1px solid #ddd;
+        }
+
+            .suggestion-item:hover {
+                background-color: #eee;
+            }
+    </style>
+</head>
+<body>
+    <h1>@ViewData["Title"]</h1>
+    <form id="weatherForm" method="post" asp-action="GetWeather">
+        <label for="city">Enter city name:</label>
+        <input type="text" id="city" name="city" required>
+        <button type="submit">Get Weather</button>
+        <div id="suggestions"></div>
+    </form>
+
+    <table id="searchHistory">
+        <thead>
+            <tr>
+                <th>City</th>
+                <th>Temperature (°C)</th>
+                <th>Wind Speed (km/h)</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div id="weather"></div>
+    <div class="error">
+        @if (ViewBag.Error != null)
+        {
+            <p>@ViewBag.Error</p>
+        }
+    </div>
+
+    </body>
+
+<script>
+        const openCageKey = '8f339a6f0fc0403faaf67b0ab4e7f4a8';
+
+        // Example list of cities for autocomplete
+        const cities = [
+        'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego',
+        'Dallas', 'San Jose', 'Austin', 'Jacksonville', 'San Francisco', 'Columbus', 'Indianapolis', 'Fort Worth',
+        'Charlotte', 'Seattle', 'Denver', 'Washington', 'Boston', 'El Paso', 'Nashville', 'Detroit', 'Oklahoma City'
+        ];
+
+        const cityInput = document.getElementById('city');
+        const suggestionsDiv = document.getElementById('suggestions');
+
+    // Function to handle autocomplete suggestions
+    cityInput.addEventListener('input', () => {
+        const query = cityInput.value.toLowerCase();
+        suggestionsDiv.innerHTML = '';
+        if (query) {
+            const filteredCities = cities.filter(city => city.toLowerCase().includes(query));
+
+            filteredCities.forEach(city => {
+                const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        div.textContent = city;
+                div.addEventListener('click', () => {
+            cityInput.value = city;
+        suggestionsDiv.innerHTML = '';
+        suggestionsDiv.style.display = 'none';
+                });
+        suggestionsDiv.appendChild(div);
+            });
+
+        suggestionsDiv.style.display = 'block';
+        } else {
+            suggestionsDiv.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!suggestionsDiv.contains(e.target) && e.target !== cityInput) {
+            suggestionsDiv.style.display = 'none';
+        }
+    });
+
+        // Function to save search history to localStorage
+        function saveToLocalStorage(city, weather) {
+            let history = JSON.parse(localStorage.getItem('searchHistory')) || [];
+        const existingIndex = history.findIndex(item => item.city === city);
+
+        if (existingIndex !== -1) {
+            // Update existing item
+            history[existingIndex] = { city, weather };
+        } else {
+            // Add new item
+            history.push({ city, weather });
+        }
+
+        localStorage.setItem('searchHistory', JSON.stringify(history));
+        updateSearchHistoryDisplay(city);
+    }
+
+        // Function to update the search history display
+        function updateSearchHistoryDisplay(city) {
+            let history = JSON.parse(localStorage.getItem('searchHistory')) || [];
+        const tbody = document.querySelector('#searchHistory tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const existingRow = rows.find(row => row.querySelector('td').textContent === city);
+
+        if (existingRow) {
+            // Remove existing row
+            tbody.removeChild(existingRow);
+        }
+
+        // Re-add the updated item at the end
+        const updatedItem = history.find(item => item.city === city);
+        if (updatedItem) {
+            const row = document.createElement('tr');
+        row.innerHTML = `
+        <td>${updatedItem.city}</td>
+        <td>${updatedItem.weather.temperature}</td>
+        <td>${updatedItem.weather.windspeed}</td>
+        `;
+            row.addEventListener('click', () => {
+            displayWeatherCard(updatedItem.weather, updatedItem.city);
+            });
+        tbody.appendChild(row);
+        }
+
+        if (history.length === 0) {
+            document.getElementById('searchHistory').style.display = 'none';
+        } else {
+            document.getElementById('searchHistory').style.display = 'table';
+        }
+    }
+
+        // Function to display weather data in a card
+        function displayWeatherCard(weather, city) {
+        const weatherDiv = document.getElementById('weather');
+
+        // Remove existing card if it exists
+        const existingCard = Array.from(weatherDiv.children).find(card => card.querySelector('h2').textContent.includes(city));
+        if (existingCard) {
+            weatherDiv.removeChild(existingCard);
+        }
+
+        // Create a new card
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+        <h2>Weather for ${city}</h2>
+        <p>Temperature: ${weather.temperature} °C</p>
+        <p>Condition: ${weather.weathercode}</p>
+        <p>Wind Speed: ${weather.windspeed} km/h</p>
+        `;
+        weatherDiv.appendChild(card);
+    }
+
+        // Function to display all saved weather data
+        function displayAllWeatherCards() {
+            let history = JSON.parse(localStorage.getItem('searchHistory')) || [];
+        history.forEach(item => {
+            displayWeatherCard(item.weather, item.city);
+        });
+    }
+
+    // Initialize search history and display all saved weather cards on page load
+    document.addEventListener('DOMContentLoaded', () => {
+            updateSearchHistoryDisplay(); // Ensure history display is updated
+        displayAllWeatherCards();
+    });
+
+        // Handle form submission
+        document.getElementById('weatherForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+        const city = document.getElementById('city').value;
+        if (city) {
+            fetch(`https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(city)}&key=${openCageKey}`)
+                .then(response => response.json())
+                .then(geoData => {
+                    if (geoData.results.length === 0) {
+                        document.querySelector('.error').textContent = 'City not found.';
+                        return;
+                    }
+
+                    const { lat, lng } = geoData.results[0].geometry;
+                    return fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`)
+                        .then(response => response.json())
+                        .then(weatherData => {
+                            const weather = weatherData.current_weather;
+                            displayWeatherCard(weather, city);
+                            saveToLocalStorage(city, weather);
+                            document.querySelector('.error').textContent = '';
+                        });
+                })
+                .catch(error => {
+                    document.querySelector('.error').textContent = error.message;
+                });
+        }
+    });</script>
+
+</html>

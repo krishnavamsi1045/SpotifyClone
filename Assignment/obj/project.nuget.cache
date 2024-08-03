@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "aXcJ0FA91Y7voBYuSs+E5weeRPM1MO8Fd1oFqLRS5Gx1TJbNA1DYaYW/++nucEFWTgfX0VB1qZ8fxOIXzh7I4w==",
+  "success": true,
+  "projectFilePath": "/Users/krishnavamsi/Projects/Assignment/Assignment/Assignment.csproj",
+  "expectedPackageFiles": [
+    "/Users/krishnavamsi/.nuget/packages/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}
